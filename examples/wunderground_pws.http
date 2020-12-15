@@ -1,0 +1,55 @@
+////////////////////////////////////////////////////////////
+// Using the IoTA to simulate the Wunderground PWS API    //
+////////////////////////////////////////////////////////////
+
+### Simple GET request to ensure the IOTA is running
+GET http://localhost:4041/version
+
+### Register device group for PWS, devices will be created on-the-fly
+POST http://localhost:4041/iot/services
+Content-Type: application/json
+Fiware-Service: openiot
+Fiware-ServicePath: /Weather
+
+{
+  "services": [
+    {
+      "apikey": "SecureAPIKeyForService",
+      "cbbroker": "http://localhost:1026",
+      "entity_type": "WeatherObserved",
+      "resource": "",
+      "attributes": [
+        // Temperature measurements (tempf, dewptf, windchillf) are measured in °F and converted to °C using JEXL expressions
+        { "object_id": "tempf", "name": "temperature", "type": "Number", "expression": "${(@temperature - 32) * 5 / 9}" },
+        { "object_id": "dewptf", "name": "dewPoint", "type": "Number", "expression": "${(@dewPoint - 32) * 5 / 9}" },
+        // Non-standardized attribute
+        { "object_id": "windchillf", "name": "windChill", "type": "Number", "expression": "${(@windChill - 32) * 5 / 9}" },
+        // Humidity is in range 0 - 100 and will be converted to relative range 0 - 1 using JEXL expressions
+        { "object_id": "humidity", "name": "relativeHumidity", "type": "Number", "expression": "${@relativeHumidity / 100}" },
+        // Speed measurements (windspeedmph, windgustmph) are measured in mp/h and converted to m/s using JEXL expressions
+        // Conversion formula: speed in m/s = speed in mile/h * (1609,344 m / mile) * (1 h / 3600 s)
+        { "object_id": "windspeedmph", "name": "windSpeed", "type": "Number", "expression": "${@windSpeed * 0.44704}" },
+        // Non-standardized attribute
+        { "object_id": "windgustmph", "name": "gustSpeed", "type": "Number", "expression": "${@gustSpeed * 0.44704}" },
+        { "object_id": "winddir", "name": "windDirection", "type": "Number" },
+        // Pressure measurements (absbaromin) are measured in inHG and converted to hPa using JEXL expressions
+        { "object_id": "absbaromin", "name": "atmosphericPressure", "type": "Number", "expression": "${@atmosphericPressure * 33.86388}" },
+        // Distance measurements (rainin) are measured in inch and converted to mm using JEXL expressions
+        { "object_id": "rainin", "name": "precipitation", "type": "Number", "expression": "${@precipitation * 25.4}" },
+        { "object_id": "solarradiation", "name": "solarRadiation", "type": "Number" },
+        // Non-standardized attribute
+        { "object_id": "UV", "name": "uvIndex", "type": "Number" },
+        // Source format: YYYY-MM-DD HH:MM:SS (utc) - Target format: YYYY-MM-DDTHH:MM:SSZ
+        { "object_id": "dateutc", "name": "dateObserved", "type": "DateTime", "expression": "${substr(@dateObserved, 0, 10)}T${substr(@dateObserved, 11, 8)}Z" }
+      ]
+    }
+  ]
+}
+
+### Get registered services
+GET http://localhost:4041/iot/services
+Fiware-Service: openiot
+Fiware-ServicePath: /Weather
+
+### Simulate measurement from PWS
+GET http://localhost:8080/wunderground?ID=WS001&PASSWORD=SecureAPIKeyForService&indoortempf=77.2&tempf=48.2&dewptf=45.3&windchillf=46.4&indoorhumidity=34&humidity=90&windspeedmph=4.5&windgustmph=5.8&winddir=221&absbaromin=29.631&baromin=29.631&rainin=0.000&dailyrainin=0.059&weeklyrainin=0.197&monthlyrainin=1.429&yearlyrainin=26.138&solarradiation=38.17&UV=0&dateutc=2020-12-15%2009:58:45&softwaretype=EasyWeatherV1.5.6&action=updateraw&realtime=1&rtfreq=5
